@@ -1,0 +1,154 @@
+:root {
+  --bg: #0f1220;
+  --surface: #1a1f36;
+  --surface-2: #232a4a;
+  --text: #eef0fa;
+  --muted: #9aa3c7;
+  --accent: #7c6cff;
+  --accent-2: #4dd0e1;
+  --danger: #ff6b7a;
+  --success: #4cd97b;
+  --radius: 14px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* Barra superior */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 28px;
+  background: var(--surface);
+  border-bottom: 1px solid #2c3357;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  gap: 12px;
+}
+
+.logo { font-weight: 700; }
+.logo em { color: var(--accent-2); font-style: normal; }
+
+.topbar-right { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.step-indicator { color: var(--muted); font-size: 0.9rem; }
+
+.container { max-width: 860px; margin: 0 auto; padding: 40px 20px 80px; }
+
+/* Pantallas */
+.screen { animation: fadein 0.3s ease; }
+@keyframes fadein { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; } }
+
+.card, .welcome-card {
+  background: var(--surface);
+  border: 1px solid #2c3357;
+  border-radius: var(--radius);
+  padding: 32px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+}
+
+h1 { margin-top: 0; }
+h1 .accent { color: var(--accent); }
+h2 { margin-top: 0; border-bottom: 1px solid #2c3357; padding-bottom: 10px; }
+h3 { color: var(--accent-2); }
+
+.subtitle { color: var(--muted); line-height: 1.6; }
+code { background: var(--surface-2); padding: 2px 6px; border-radius: 6px; font-size: 0.9em; }
+
+/* Formularios */
+.form-group { margin-bottom: 20px; display: flex; flex-direction: column; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+label { font-weight: 600; margin-bottom: 8px; }
+
+input[type="text"], input[type="password"], select, textarea {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid #343d6b;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 1rem;
+  font-family: inherit;
+  width: 100%;
+}
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); border-color: transparent; }
+textarea { resize: vertical; }
+
+/* Botones */
+.btn {
+  border: none;
+  border-radius: 10px;
+  padding: 12px 22px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.1s ease, opacity 0.2s;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-secondary { background: var(--surface-2); color: var(--text); border: 1px solid #343d6b; }
+.btn-outline {
+  display: inline-block;
+  background: transparent;
+  color: var(--accent-2);
+  border: 2px dashed var(--accent-2);
+  text-align: center;
+}
+
+.form-actions { display: flex; justify-content: space-between; gap: 12px; margin-top: 24px; flex-wrap: wrap; }
+.welcome-actions { display: flex; flex-direction: column; gap: 14px; margin-top: 28px; }
+.divider { text-align: center; color: var(--muted); font-size: 0.9rem; }
+
+.api-key-box { margin-top: 28px; background: var(--surface-2); padding: 20px; border-radius: var(--radius); }
+.hint { color: var(--muted); font-size: 0.85rem; line-height: 1.5; }
+
+/* Mensajes */
+.error-msg {
+  background: rgba(255,107,122,0.12);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  padding: 12px 16px;
+  border-radius: 10px;
+  line-height: 1.5;
+}
+.loading { color: var(--accent-2); font-weight: 600; padding: 16px 0; }
+
+/* Resultados */
+.summary-box {
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 16px 20px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+.summary-box strong { color: var(--text); }
+
+.challenges-list { list-style: none; padding: 0; }
+.challenges-list li {
+  background: var(--surface-2);
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+.challenges-list li strong { color: var(--accent-2); display: block; margin-bottom: 4px; }
+
+#validationResult { margin-top: 28px; border-top: 1px solid #2c3357; padding-top: 20px; }
+
+@media (max-width: 640px) {
+  .form-row { grid-template-columns: 1fr; }
+  .card, .welcome-card { padding: 20px; }
+  .topbar { padding: 10px 14px; }
+  .form-actions { flex-direction: column-reverse; }
+  .form-actions .btn { width: 100%; }
+}

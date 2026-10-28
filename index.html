@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Startup-in-a-Box AI Architect</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Barra superior -->
+  <header class="topbar" id="topbar" hidden>
+    <div class="topbar-left">
+      <span class="logo">📦 Startup-in-a-Box <em>AI Architect</em></span>
+    </div>
+    <div class="topbar-right">
+      <span class="step-indicator" id="stepIndicator"></span>
+      <button class="btn btn-secondary" id="btnSaveProgress">💾 Guardar Progreso Actual</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- PASO 0: Pantalla de Bienvenida -->
+    <section id="screen-welcome" class="screen">
+      <div class="welcome-card">
+        <h1>📦 Startup-in-a-Box <span class="accent">AI Architect</span></h1>
+        <p class="subtitle">
+          Crea tu proyecto ejecutivo completo basado en datos reales.
+          Tu progreso se guarda en un archivo <code>business_project.json</code>
+          que puedes descargar y retomar en cualquier momento.
+        </p>
+
+        <div class="api-key-box">
+          <label for="apiKey">Clave API de Mistral AI</label>
+          <input type="password" id="apiKey" placeholder="Introduce tu clave de Mistral AI" autocomplete="off" />
+          <p class="hint">La clave se guarda en tu estado local y se incluye en el archivo
+            <code>business_project.json</code> exportable para no volver a introducirla.</p>
+        </div>
+
+        <div class="welcome-actions">
+          <button class="btn btn-primary" id="btnNewProject">🚀 Iniciar Nuevo Proyecto</button>
+          <div class="divider">— o —</div>
+          <label class="btn btn-outline" for="importFile">📂 Cargar Proyecto Anterior</label>
+          <input type="file" id="importFile" accept="application/json,.json" hidden />
+          <p class="hint" id="importHint">Sube tu archivo <code>business_project.json</code> para restaurar datos, clave y el paso exacto donde te quedaste.</p>
+        </div>
+
+        <p class="error-msg" id="welcomeError" hidden></p>
+      </div>
+    </section>
+
+    <!-- PASO 1: Datos básicos del negocio -->
+    <section id="screen-basics" class="screen" hidden>
+      <div class="card">
+        <h2>1 · Datos Básicos del Negocio</h2>
+        <form id="basicsForm" autocomplete="off">
+          <div class="form-group">
+            <label for="projectName">Nombre del proyecto o empresa *</label>
+            <input type="text" id="projectName" placeholder="Ej. Café Aurora" required />
+          </div>
+
+          <div class="form-group">
+            <label for="sector">Sector / Industria *</label>
+            <select id="sector" required>
+              <option value="">Selecciona un sector…</option>
+              <option value="E-commerce">E-commerce</option>
+              <option value="Restauración">Restauración</option>
+              <option value="Software SaaS">Software SaaS</option>
+              <option value="Servicio Local">Servicio Local</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="country">País *</label>
+              <input type="text" id="country" placeholder="Ej. México" required />
+            </div>
+            <div class="form-group">
+              <label for="city">Ciudad *</label>
+              <input type="text" id="city" placeholder="Ej. CDMX" required />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="description">Descripción abierta y detallada de la idea de negocio *</label>
+            <textarea id="description" rows="6" placeholder="Describe tu idea: qué vendes, a quién, qué problema resuelve, cómo generarás ingresos…" required></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" id="btnBackToWelcome">← Volver</button>
+            <button type="submit" class="btn btn-primary">Siguiente →</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- PASO 2: Validación Preliminar con Mistral -->
+    <section id="screen-validation" class="screen" hidden>
+      <div class="card">
+        <h2>2 · Validación Preliminar</h2>
+        <p class="subtitle">
+          Consultamos a Mistral AI con la descripción de tu negocio para obtener
+          los <strong>3 principales desafíos iniciales</strong>.
+        </p>
+
+        <div class="summary-box" id="businessSummary"></div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" id="btnBackToBasics">← Editar datos</button>
+          <button type="button" class="btn btn-primary" id="btnRunValidation">🔍 Obtener Desafíos</button>
+        </div>
+
+        <div id="validationResult" hidden>
+          <h3>Validación Preliminar · Principales Desafíos Iniciales</h3>
+          <ul class="challenges-list" id="challengesList"></ul>
+        </div>
+
+        <p class="error-msg" id="validationError" hidden></p>
+        <div class="loading" id="validationLoading" hidden>⏳ Consultando a Mistral AI…</div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
