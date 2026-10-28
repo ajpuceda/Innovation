@@ -14,6 +14,8 @@ const STEPS = {
   MARKET: "market",
   LEGAL: "legal",
   COSTS: "costs",
+  DASHBOARD: "dashboard",
+  DOCUMENT: "document",
 };
 
 /* ---------------- Objeto de estado central ---------------- */
@@ -65,6 +67,16 @@ function createEmptyState() {
       },
       rawResponse: null,
       analyzedAt: null,
+    },
+    dashboard: {
+      initialUnits: 50,
+      growthPct: 10,
+      snapshot: null,
+    },
+    document: {
+      completed: false,
+      markdown: "",
+      generatedAt: null,
     },
   };
 }
@@ -122,6 +134,46 @@ function unitEconomics(market, costs) {
   };
 }
 
+function variableUnitCost(market, costs) {
+  return toNumber(market.cogs) + toNumber(costs.totals?.variableRatePerUnit);
+}
+
+function breakEvenUnits(fixedMonthlyTotal, price, variableUnit) {
+  const margin = price - variableUnit;
+  if (!(margin > 0)) return Infinity;
+  return Math.ceil(fixedMonthlyTotal / margin);
+}
+
+function projectionSeries(initialUnits, growthPct, months, price, variableUnit, fixedMonthlyTotal) {
+  const g = 1 + toNumber(growthPct) / 100;
+  const series = [];
+  let cumulativeRevenue = 0;
+  let cumulativeCosts = 0;
+  for (let m = 0; m < months; m++) {
+    const units = toNumber(initialUnits) * Math.pow(g, m);
+    const revenue = units * price;
+    const costs = fixedMonthlyTotal + units * variableUnit;
+    cumulativeRevenue += revenue;
+    cumulativeCosts += costs;
+    series.push({
+      month: m + 1,
+      units,
+      revenue,
+      costs,
+      profit: revenue - costs,
+      cumulativeRevenue,
+      cumulativeCosts,
+      cumulativeProfit: cumulativeRevenue - cumulativeCosts,
+    });
+  }
+  return series;
+}
+
+function firstProfitMonth(series) {
+  const hit = series.find((s) => s.profit > 0);
+  return hit ? hit.month : null;
+}
+
 /* ---------------- Referencias DOM ---------------- */
 const $ = (id) => document.getElementById(id);
 const screens = {
@@ -131,6 +183,8 @@ const screens = {
   market: $("screen-market"),
   legal: $("screen-legal"),
   costs: $("screen-costs"),
+  dashboard: $("screen-dashboard"),
+  document: $("screen-document"),
 };
 
 const els = {
@@ -190,6 +244,25 @@ const els = {
   variableCostsCards: $("variableCostsCards"),
   fixedTotalBox: $("fixedTotalBox"),
   variableRateBox: $("variableRateBox"),
+  // Dashboard
+  btnDashboardNext: $("btnDashboardNext"),
+  dashPriceInput: $("dashPriceInput"),
+  dashInitialUnits: $("dashInitialUnits"),
+  dashGrowth: $("dashGrowth"),
+  breakEvenBox: $("breakEvenBox"),
+  metricsGrid: $("metricsGrid"),
+  dashChart: $("dashChart"),
+  dashChartFallback: $("dashChartFallback"),
+  dashMissing: $("dashMissing"),
+  dashCurrencyLabel: $("dashCurrencyLabel"),
+  // Documento
+  btnWriteDoc: $("btnWriteDoc"),
+  docError: $("docError"),
+  docLoading: $("docLoading"),
+  docResult: $("docResult"),
+  docContent: $("docContent"),
+  btnDownloadMd: $("btnDownloadMd"),
+  btnPrintPdf: $("btnPrintPdf"),
 };
 
 /* ---------------- Render / navegación ---------------- */
@@ -227,6 +300,12 @@ function render() {
     renderBusinessSummary(els.costsSummary);
     renderCosts();
   }
+  if (state.currentStep === STEPS.DASHBOARD) {
+    renderDashboard();
+  }
+  if (state.currentStep === STEPS.DOCUMENT) {
+    renderDocument();
+  }
 }
 
 function stepLabel(step) {
@@ -236,6 +315,8 @@ function stepLabel(step) {
     [STEPS.MARKET]: "3 · Análisis de Mercado Real",
     [STEPS.LEGAL]: "4 · Legalidad y Registro",
     [STEPS.COSTS]: "5 · Modelo Financiero Base — Costes",
+    [STEPS.DASHBOARD]: "6 · Dashboard Financiero y Punto de Equilibrio",
+    [STEPS.DOCUMENT]: "7 · Redacción del Proyecto Ejecutivo",
   };
   return labels[step] || "Bienvenida";
 }
@@ -319,6 +400,13 @@ function restoreState(data) {
     market: { ...createEmptyState().market, ...data.market },
     legal: { ...createEmptyState().legal, ...data.legal },
     costs: { ...createEmptyState().costs, ...data.costs },
+    dashboard: { ...createEmptyState().dashboard, ...data.dashboard },
+    document: { ...createEmptyState().document, ...data.document },
+  };
+  // recalcula derivados para blindar contra estados exportados con números desactualizados
+  state.costs.totals = {
+    fixedMonthlyTotal: sumFixedCosts(state.costs.fixed),
+    variableRatePerUnit: variableRatePerUnit(state.costs.variable),
   };
 }
 
@@ -815,6 +903,324 @@ function costsChanged(e) {
   renderCosts();
 }
 
+/* ---------------- Paso 6: Dashboard Financiero y Punto de Equilibrio ---------------- */
+let dashChartInstance = null;
+
+function dashboardNumbers() {
+  const price = toNumber(state.market.avgPrice);
+  const variableUnit = variableUnitCost(state.market, state.costs);
+  const fixedMonthlyTotal = toNumber(state.costs.totals?.fixedMonthlyTotal);
+  const beUnits = breakEvenUnits(fixedMonthlyTotal, price, variableUnit);
+  return { price, variableUnit, fixedMonthlyTotal, beUnits, margin: price - variableUnit };
+}
+
+function renderDashboard() {
+  const m = state.market;
+  const c = state.costs;
+  const missing = !m.completed || !c.completed;
+  els.dashMissing.hidden = !missing;
+  els.dashContent = $("dashContent");
+  els.dashContent.hidden = missing;
+  if (missing) return;
+
+  els.dashCurrencyLabel.textContent = m.currency || "USD";
+  if (document.activeElement !== els.dashPriceInput) {
+    els.dashPriceInput.value = m.avgPrice;
+  }
+  els.dashInitialUnits.value = state.dashboard.initialUnits;
+  els.dashGrowth.value = state.dashboard.growthPct;
+
+  const { price, variableUnit, fixedMonthlyTotal, beUnits, margin } = dashboardNumbers();
+  const series = projectionSeries(
+    state.dashboard.initialUnits,
+    state.dashboard.growthPct,
+    12,
+    price,
+    variableUnit,
+    fixedMonthlyTotal
+  );
+
+  const firstProfit = firstProfitMonth(series);
+  const beRevenue = Number.isFinite(beUnits) ? beUnits * price : null;
+  els.breakEvenBox.innerHTML = Number.isFinite(beUnits)
+    ? `⚠️ Punto de Equilibrio: <strong>${beUnits.toLocaleString("es-ES")} unidades/mes</strong>` +
+      ` · Ingresos equivalentes: <strong>${formatMoney(beRevenue)} ${escapeHtml(m.currency)}</strong>`
+    : `⚠️ Punto de Equilibrio: <strong>no alcanzable</strong> con los números actuales (el margen unitario debe ser positivo).`;
+
+  els.metricsGrid.innerHTML = [`
+    <div class="metric"><span>Precio unitario</span><strong>${formatMoney(price)} ${escapeHtml(m.currency)}</strong></div>
+    <div class="metric"><span>Coste variable unitario</span><strong>${formatMoney(variableUnit)} ${escapeHtml(m.currency)}</strong></div>
+    <div class="metric"><span>Margen de contribución</span><strong>${formatMoney(margin)} ${escapeHtml(m.currency)}</strong></div>
+    <div class="metric"><span>Costes fijos mensuales</span><strong>${formatMoney(fixedMonthlyTotal)} ${escapeHtml(m.currency)}</strong></div>
+    <div class="metric"><span>Primer mes con beneficio</span><strong>${firstProfit ? "Mes " + firstProfit : "—"}</strong></div>
+    <div class="metric"><span>Beneficio neto acumulado a 12 meses</span><strong>${formatMoney(series[11].cumulativeProfit)} ${escapeHtml(m.currency)}</strong></div>
+  `].join("");
+
+  drawDashboardChart(series, m.currency);
+
+  state.dashboard.snapshot = {
+    breakEvenUnits: Number.isFinite(beUnits) ? beUnits : null,
+    breakEvenRevenue: beRevenue,
+    firstProfitMonth: firstProfit,
+    cumulativeProfit12m: series[11].cumulativeProfit,
+    price,
+    variableUnit,
+    fixedMonthlyTotal,
+    series,
+  };
+}
+
+function drawDashboardChart(series, currency) {
+  const labels = series.map((s) => "M" + s.month);
+  if (typeof Chart !== "undefined" && els.dashChart) {
+    els.dashChartFallback.hidden = true;
+    els.dashChart.hidden = false;
+    const config = {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Ingresos acumulados",
+            data: series.map((s) => Math.round(s.cumulativeRevenue)),
+            backgroundColor: "rgba(124,108,255,0.75)",
+            borderRadius: 6,
+          },
+          {
+            label: "Costes acumulados",
+            data: series.map((s) => Math.round(s.cumulativeCosts)),
+            backgroundColor: "rgba(255,107,122,0.75)",
+            borderRadius: 6,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: "#eef0fa", boxWidth: 16 } },
+          tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${formatMoney(ctx.raw)} ${currency}` } },
+        },
+        scales: {
+          x: { ticks: { color: "#9aa3c7" }, grid: { display: false } },
+          y: { ticks: { color: "#9aa3c7", callback: (v) => formatMoney(v) }, grid: { color: "rgba(255,255,255,0.06)" } },
+        },
+      },
+    };
+    if (dashChartInstance) dashChartInstance.destroy();
+    dashChartInstance = new Chart(els.dashChart, config);
+  } else {
+    els.dashChart.hidden = true;
+    els.dashChartFallback.hidden = false;
+    const max = Math.max(...series.map((s) => Math.max(s.cumulativeRevenue, s.cumulativeCosts)), 1);
+    els.dashChartFallback.innerHTML = series
+      .map((s) => {
+        const hR = Math.max(2, Math.round((s.cumulativeRevenue / max) * 100));
+        const hC = Math.max(2, Math.round((s.cumulativeCosts / max) * 100));
+        return `<div class="fb-col"><div class="fb-bars"><div class="fb-bar bar-rev" style="height:${hR}%" title="Ingresos: ${formatMoney(s.cumulativeRevenue)}"></div><div class="fb-bar bar-cost" style="height:${hC}%" title="Costes: ${formatMoney(s.cumulativeCosts)}"></div></div><span>M${s.month}</span></div>`;
+      })
+      .join("");
+  }
+}
+
+function dashboardInputChanged() {
+  state.market.avgPrice = toNumber(els.dashPriceInput.value);
+  state.dashboard.initialUnits = Math.max(0, Math.round(toNumber(els.dashInitialUnits.value)));
+  state.dashboard.growthPct = toNumber(els.dashGrowth.value);
+  touch();
+  renderDashboard();
+}
+
+/* ---------------- Paso 7: Redacción del Proyecto Ejecutivo ---------------- */
+function docSystemPrompt() {
+  return (
+    "Eres un consultor estratégico senior especializado en redactar planes de negocio para inversores y bancos. " +
+    "Redacta un documento corporativo formal, detallado y profesional en español, en formato Markdown, " +
+    "siguiendo ESTRICTAMENTE esta estructura oficial con estos 4 títulos de sección:\n" +
+    "## 1. Resumen Ejecutivo\n" +
+    "## 2. Análisis del Entorno Competitivo\n" +
+    "## 3. Plan Operativo y de Personal\n" +
+    "## 4. Viabilidad Financiera y Mitigación de Riesgos\n" +
+    "Usa los datos reales facilitados (precios, costes, punto de equilibrio, proyección). No inventes cifras nuevas: " +
+    "usa exclusivamente las cifras dadas. Responde ÚNICAMENTE con el documento Markdown, sin introducciones ni explicaciones. " +
+    "No uses tablas complejas; párrafos y listas con viñetas bien redactados."
+  );
+}
+
+function docUserPrompt() {
+  const b = state.business;
+  const m = state.market;
+  const l = state.legal;
+  const c = state.costs;
+  const d = state.dashboard.snapshot || dashboardNumbers();
+  const legalItems = l.items.map((i) => `- ${i.name}: ${formatMoney(i.cost)} ${l.currency}${i.done ? " (completado)" : ""}`).join("\n");
+  const fixedItems = c.fixed.map((f) => `- ${f.concept}: ${formatMoney(f.amount)} ${c.currency}/mes`).join("\n");
+  const varItems = c.variable.map((v) => `- ${v.concept}: ${formatMoney(v.perUnit)} ${c.currency}/unidad`).join("\n");
+  const competitors = m.competitors.map((x) => `- ${x.name}${x.type ? " (" + x.type + ")" : ""}${x.note ? ": " + x.note : ""}`).join("\n");
+  const series = (state.dashboard.snapshot && state.dashboard.snapshot.series) || [];
+  const seriesTxt = series.map((s) => `Mes ${s.month}: ${Math.round(s.units)} uds, ingresos ${formatMoney(s.revenue)}, costes ${formatMoney(s.costs)}, beneficio ${formatMoney(s.profit)}`).join("; ");
+  return `DATOS DEL PROYECTO
+Nombre: ${b.projectName}
+Sector: ${b.sector}
+Ubicación: ${b.city}, ${b.country}
+Descripción: ${b.description}
+
+MERCADO
+Precio promedio validado: ${formatMoney(m.avgPrice)} ${m.currency} por unidad
+COGS por unidad: ${formatMoney(m.cogs)} ${m.currency}
+Competidores:
+${competitors || "No definidos"}
+
+LEGALIDAD (Inversión Inicial Legal: ${formatMoney(legalTotal(l.items))} ${l.currency})
+${legalItems || "Sin trámites registrados"}
+
+COSTES FIJOS MENSUALES (total: ${formatMoney(c.totals.fixedMonthlyTotal)} ${c.currency})
+${fixedItems}
+
+COSTES VARIABLES POR UNIDAD (tasa: ${formatMoney(c.totals.variableRatePerUnit)} ${c.currency})
+${varItems}
+
+MÉTRICAS FINANCIERAS
+Punto de equilibrio: ${d.breakEvenUnits != null ? d.breakEvenUnits + " unidades/mes" : "no calculado"}
+Margen de contribución: ${formatMoney(d.price - d.variableUnit)} ${m.currency} por unidad
+Primer mes con beneficio: ${d.firstProfitMonth ? "Mes " + d.firstProfitMonth : "no calculado"}
+Beneficio acumulado a 12 meses: ${formatMoney(d.cumulativeProfit12m || 0)} ${m.currency}
+Proyección mensual: ${seriesTxt || "no calculada"}`;
+}
+
+async function writeExecutiveDocument() {
+  showError(els.docError, "");
+  els.docLoading.hidden = false;
+  els.btnWriteDoc.disabled = true;
+  try {
+    const content = await callMistralText(docSystemPrompt(), docUserPrompt());
+    state.document = {
+      completed: true,
+      markdown: content,
+      generatedAt: new Date().toISOString(),
+    };
+    touch();
+    renderDocument();
+  } catch (err) {
+    showError(els.docError, err.message);
+  } finally {
+    els.docLoading.hidden = true;
+    els.btnWriteDoc.disabled = false;
+  }
+}
+
+function renderDocument() {
+  if (!state.document.completed || !state.document.markdown) {
+    els.docResult.hidden = true;
+    return;
+  }
+  els.docResult.hidden = false;
+  els.docContent.innerHTML = renderMarkdown(state.document.markdown);
+}
+
+/* ---------------- Markdown mínimo y seguro ---------------- */
+function renderMarkdown(md) {
+  const lines = String(md || "").split("\n");
+  const out = [];
+  let inList = false;
+  const closeList = () => {
+    if (inList) {
+      out.push("</ul>");
+      inList = false;
+    }
+  };
+  for (let raw of lines) {
+    const esc = escapeHtml(raw);
+    const line = esc.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/\*(.+?)\*/g, "<em>$1</em>");
+    const h = line.match(/^(#{1,4})\s+(.*)$/);
+    if (h) {
+      closeList();
+      out.push(`<h${h[1].length + 1}>${h[2]}</h${h[1].length + 1}>`);
+    } else if (/^\s*[-*+]\s+/.test(line)) {
+      if (!inList) {
+        out.push("<ul>");
+        inList = true;
+      }
+      out.push(`<li>${line.replace(/^\s*[-*+]\s+/, "")}</li>`);
+    } else if (line.trim() === "") {
+      closeList();
+    } else {
+      closeList();
+      out.push(`<p>${line}</p>`);
+    }
+  }
+  closeList();
+  return out.join("\n");
+}
+
+/* ---------------- Paso 8: Exportación del informe final ---------------- */
+function buildReportMarkdown() {
+  const b = state.business;
+  const m = state.market;
+  const l = state.legal;
+  const c = state.costs;
+  const d = state.dashboard.snapshot || {};
+  const md = [];
+  md.push(`# Proyecto Ejecutivo — ${b.projectName}`);
+  md.push(`\n**Sector:** ${b.sector}  \n**Ubicación:** ${b.city}, ${b.country}  \n**Fecha:** ${new Date().toLocaleDateString("es-ES")}\n`);
+  if (state.document.markdown) {
+    md.push(state.document.markdown);
+  }
+  md.push(`\n---\n\n## Anexo A · Análisis de Mercado\n`);
+  md.push(`| Indicador | Valor |\n|---|---|\n| Precio promedio de mercado | ${formatMoney(m.avgPrice)} ${m.currency} |\n| COGS por unidad | ${formatMoney(m.cogs)} ${m.currency} |\n`);
+  if (m.competitors.length) {
+    md.push(`\n| Competidor | Tipo | Nota |\n|---|---|---|\n`);
+    m.competitors.forEach((x) => md.push(`| ${x.name} | ${x.type || ""} | ${x.note || ""} |\n`));
+  }
+  md.push(`\n---\n\n## Anexo B · Legalidad y Registro — Inversión Inicial Legal: ${formatMoney(legalTotal(l.items))} ${l.currency}\n`);
+  md.push(`| Trámite | Coste | Estado |\n|---|---|---|\n`);
+  l.items.forEach((i) => md.push(`| ${i.name} | ${formatMoney(i.cost)} ${l.currency} | ${i.done ? "✅ Completado" : "⬜ Pendiente"} |\n`));
+  md.push(`\n---\n\n## Anexo C · Modelo de Costes\n`);
+  md.push(`**Costes fijos mensuales (total: ${formatMoney(c.totals.fixedMonthlyTotal)} ${c.currency})**\n\n| Concepto | Importe mensual |\n|---|---|\n`);
+  c.fixed.forEach((f) => md.push(`| ${f.concept} | ${formatMoney(f.amount)} ${c.currency} |\n`));
+  md.push(`\n**Costes variables por unidad (tasa: ${formatMoney(c.totals.variableRatePerUnit)} ${c.currency}/unidad)**\n\n| Concepto | Importe por unidad |\n|---|---|\n`);
+  c.variable.forEach((v) => md.push(`| ${v.concept} | ${formatMoney(v.perUnit)} ${c.currency} |\n`));
+  if (d.series) {
+    md.push(`\n---\n\n## Anexo D · Punto de Equilibrio y Proyección a 12 meses\n`);
+    md.push(`- **Punto de equilibrio:** ${d.breakEvenUnits} unidades/mes\n- **Ingresos equivalentes:** ${formatMoney(d.breakEvenRevenue)} ${m.currency}\n- **Primer mes con beneficio:** ${d.firstProfitMonth ? "Mes " + d.firstProfitMonth : "—"}\n- **Beneficio acumulado a 12 meses:** ${formatMoney(d.cumulativeProfit12m)} ${m.currency}\n`);
+    md.push(`\n| Mes | Unidades | Ingresos | Costes | Beneficio | Ingresos acum. | Costes acum. |\n|---|---|---|---|---|---|---|\n`);
+    d.series.forEach((s) => md.push(`| ${s.month} | ${Math.round(s.units)} | ${formatMoney(s.revenue)} | ${formatMoney(s.costs)} | ${formatMoney(s.profit)} | ${formatMoney(s.cumulativeRevenue)} | ${formatMoney(s.cumulativeCosts)} |\n`));
+  }
+  return md.join("");
+}
+
+function downloadReport() {
+  if (!state.market.completed || !state.costs.completed) {
+    showError(els.docError, "Completa primero el Análisis de Mercado y el Modelo de Costes.");
+    return;
+  }
+  showError(els.docError, "");
+  const content = buildReportMarkdown();
+  const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `proyecto_ejecutivo_${(state.business.projectName || "empresa").toLowerCase().replace(/[^a-z0-9]+/g, "_")}.md`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function printReport() {
+  if (!state.market.completed || !state.costs.completed) {
+    showError(els.docError, "Completa primero el Análisis de Mercado y el Modelo de Costes.");
+    return;
+  }
+  showError(els.docError, "");
+  const printRoot = document.createElement("div");
+  printRoot.id = "print-report";
+  printRoot.innerHTML = `<h1>Proyecto Ejecutivo — ${escapeHtml(state.business.projectName)}</h1>` + renderMarkdown(buildReportMarkdown());
+  document.body.appendChild(printRoot);
+  window.print();
+  setTimeout(() => printRoot.remove(), 500);
+}
+
 /* ---------------- Cliente genérico de Mistral ---------------- */
 function extractJson(text) {
   const trimmed = text.trim().replace(/^```(json)?/i, "").replace(/```$/, "").trim();
@@ -828,6 +1234,40 @@ function extractJson(text) {
     }
     throw new Error("La respuesta de Mistral no contiene un JSON válido.");
   }
+}
+
+async function callMistralText(systemPrompt, userPrompt) {
+  let res;
+  try {
+    res = await fetch(MISTRAL_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${state.mistralApiKey}`,
+      },
+      body: JSON.stringify({
+        model: MISTRAL_MODEL,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.5,
+      }),
+    });
+  } catch {
+    throw new Error("No se pudo conectar con Mistral AI. Revisa tu conexión a internet y la clave API.");
+  }
+  if (res.status === 401 || res.status === 403) {
+    throw new Error("La Clave API de Mistral AI no es válida o no está autorizada.");
+  }
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Error de conexión con Mistral AI (HTTP ${res.status}). ${body.slice(0, 200)}`);
+  }
+  const data = await res.json();
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) throw new Error("Mistral AI respondió sin contenido.");
+  return content;
 }
 
 async function callMistral(systemPrompt, userPrompt) {
@@ -915,6 +1355,21 @@ $("btnBackToLegal").addEventListener("click", () => goTo(STEPS.LEGAL));
 els.btnRunCosts.addEventListener("click", runCostsAnalysis);
 els.fixedCostsCards.addEventListener("input", costsChanged);
 els.variableCostsCards.addEventListener("input", costsChanged);
+els.btnCostsNext = $("btnCostsNext");
+els.btnCostsNext.addEventListener("click", () => goTo(STEPS.DASHBOARD));
+
+// Dashboard
+$("btnBackToCosts").addEventListener("click", () => goTo(STEPS.COSTS));
+els.dashPriceInput.addEventListener("input", dashboardInputChanged);
+els.dashInitialUnits.addEventListener("input", dashboardInputChanged);
+els.dashGrowth.addEventListener("input", dashboardInputChanged);
+els.btnDashboardNext.addEventListener("click", () => goTo(STEPS.DOCUMENT));
+
+// Documento
+$("btnBackToDashboard").addEventListener("click", () => goTo(STEPS.DASHBOARD));
+els.btnWriteDoc.addEventListener("click", writeExecutiveDocument);
+els.btnDownloadMd.addEventListener("click", downloadReport);
+els.btnPrintPdf.addEventListener("click", printReport);
 
 bindBasicsInputs();
 render();

@@ -18,6 +18,7 @@
     </div>
   </header>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <main class="container">
     <!-- PASO 0: Pantalla de Bienvenida -->
     <section id="screen-welcome" class="screen">
@@ -248,6 +249,84 @@
           <h3>Costes Variables por Unidad <small>(editables)</small></h3>
           <div class="cards-grid" id="variableCostsCards"></div>
           <div class="total-box" id="variableRateBox"></div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-primary" id="btnCostsNext">Siguiente: Dashboard Financiero →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PASO 6: Dashboard Financiero y Punto de Equilibrio -->
+    <section id="screen-dashboard" class="screen" hidden>
+      <div class="card">
+        <h2>6 · Dashboard Financiero y Punto de Equilibrio</h2>
+        <p class="subtitle">
+          Proyección interactiva a 12 meses: ingresos frente a costes acumulados.
+          Si cambias el precio o los supuestos, el Punto de Equilibrio y la gráfica se recalculan al instante.
+        </p>
+
+        <div class="error-msg" id="dashMissing" hidden>
+          ⚠️ Completa antes el <strong>Análisis de Mercado</strong> y el <strong>Modelo de Costes</strong>.
+        </div>
+
+        <div id="dashContent">
+          <div class="dash-controls">
+            <div class="form-group">
+              <label for="dashPriceInput">Precio unitario final (<span id="dashCurrencyLabel">USD</span>)</label>
+              <input type="number" step="0.01" min="0" id="dashPriceInput" />
+            </div>
+            <div class="form-group">
+              <label for="dashInitialUnits">Unidades vendidas · mes 1</label>
+              <input type="number" step="1" min="0" id="dashInitialUnits" />
+            </div>
+            <div class="form-group">
+              <label for="dashGrowth">Crecimiento mensual (%)</label>
+              <input type="number" step="0.5" id="dashGrowth" />
+            </div>
+          </div>
+
+          <div class="total-box be-box" id="breakEvenBox"></div>
+          <div class="metrics-grid" id="metricsGrid"></div>
+
+          <h3>Proyección a 12 meses · ingresos vs. costes acumulados</h3>
+          <div class="chart-wrap"><canvas id="dashChart"></canvas></div>
+          <div class="fb-chart" id="dashChartFallback" hidden></div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" id="btnBackToCosts">← Volver</button>
+          <button type="button" class="btn btn-primary" id="btnDashboardNext">Siguiente: Redacción del Proyecto Ejecutivo →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PASO 7: Redacción del Proyecto Ejecutivo -->
+    <section id="screen-document" class="screen" hidden>
+      <div class="card">
+        <h2>7 · Redacción del Proyecto Ejecutivo</h2>
+        <p class="subtitle">
+          Mistral AI redacta tu documento corporativo formal con la estructura oficial de un Plan de Negocios
+          para inversores o bancos, usando únicamente tus datos reales.
+        </p>
+
+        <div class="doc-actions">
+          <button type="button" class="btn btn-primary btn-big" id="btnWriteDoc">✍️ Redactar Proyecto Ejecutivo Completo con IA</button>
+        </div>
+
+        <p class="error-msg" id="docError" hidden></p>
+        <div class="loading" id="docLoading" hidden>⏳ Redactando el documento con Mistral AI…</div>
+
+        <div id="docResult" hidden>
+          <div class="doc-toolbar">
+            <button type="button" class="btn btn-secondary" id="btnDownloadMd">⬇️ Descargar Proyecto Ejecutivo (.md)</button>
+            <button type="button" class="btn btn-secondary" id="btnPrintPdf">🖨️ Descargar / Imprimir PDF</button>
+          </div>
+          <article class="doc-content" id="docContent"></article>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" id="btnBackToDashboard">← Volver</button>
         </div>
       </div>
     </section>

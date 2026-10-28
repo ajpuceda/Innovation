@@ -275,6 +275,103 @@ textarea { resize: vertical; }
 
 h3 small { color: var(--muted); font-weight: 400; }
 
+/* Dashboard */
+.dash-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.be-box { border-color: var(--accent); background: rgba(124,108,255,0.12); font-size: 1.1rem; }
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin: 16px 0 24px;
+}
+.metric {
+  background: var(--surface-2);
+  border: 1px solid #343d6b;
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+.metric:hover { transform: translateY(-2px); border-color: var(--accent); }
+.metric span { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.metric strong { font-size: 1.15rem; color: var(--accent-2); }
+.chart-wrap { position: relative; height: 360px; background: var(--surface-2); border-radius: 12px; padding: 16px; }
+
+/* Fallback sin Chart.js */
+.fb-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 320px;
+  background: var(--surface-2);
+  border-radius: 12px;
+  padding: 16px;
+  overflow-x: auto;
+}
+.fb-col { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; min-width: 38px; height: 100%; }
+.fb-bars { display: flex; align-items: flex-end; gap: 3px; width: 100%; height: 85%; }
+.fb-bar { flex: 1; border-radius: 4px 4px 0 0; min-height: 2px; transition: height 0.3s ease; }
+.bar-rev { background: var(--accent); }
+.bar-cost { background: var(--danger); }
+.fb-col > span { color: var(--muted); font-size: 0.75rem; }
+
+/* Documento ejecutivo */
+.doc-actions { text-align: center; margin: 24px 0; }
+.btn-big { font-size: 1.1rem; padding: 16px 32px; }
+.doc-toolbar { display: flex; gap: 12px; flex-wrap: wrap; margin: 20px 0; }
+.doc-content {
+  background: #f7f7fb;
+  color: #1c2033;
+  border-radius: 12px;
+  padding: 36px 44px;
+  line-height: 1.75;
+  max-height: 70vh;
+  overflow-y: auto;
+  animation: fadein 0.4s ease;
+}
+.doc-content h2 { color: #3b2fa3; border-bottom: 2px solid #d9d6f5; padding-bottom: 8px; margin-top: 32px; }
+.doc-content h3 { color: #1c2033; }
+.doc-content strong { color: #23264a; }
+.doc-content p { margin: 12px 0; }
+
+/* Impresión: PDF profesional */
+#print-report { display: none; }
+@media print {
+  body { background: #fff; }
+  .topbar, .container, .screen, #docResult, .loading, .error-msg { display: none !important; }
+  #print-report {
+    display: block;
+    background: #fff;
+    color: #111;
+    font-family: Georgia, "Times New Roman", serif;
+    line-height: 1.7;
+    padding: 0;
+    max-width: 100%;
+    overflow: visible;
+  }
+  #print-report .doc-content { max-height: none; overflow: visible; background: #fff; color: #111; padding: 0; border-radius: 0; animation: none; }
+  #print-report h1 { font-size: 1.6rem; page-break-after: avoid; }
+  #print-report h2 {
+    page-break-before: always;
+    page-break-after: avoid;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 6px;
+    color: #222;
+  }
+  #print-report h3, #print-report h4 { page-break-after: avoid; }
+  #print-report p, #print-report li, #print-report ul { page-break-inside: avoid; }
+  #print-report table { page-break-inside: avoid; width: 100%; border-collapse: collapse; margin: 12px 0; }
+  #print-report th, #print-report td { border: 1px solid #999; padding: 6px 10px; text-align: left; font-size: 0.9rem; }
+  #print-report th { background: #eee; }
+}
+
 @media (max-width: 640px) {
   .form-row { grid-template-columns: 1fr; }
   .card, .welcome-card { padding: 20px; }
