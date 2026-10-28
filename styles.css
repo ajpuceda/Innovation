@@ -145,6 +145,136 @@ textarea { resize: vertical; }
 
 #validationResult { margin-top: 28px; border-top: 1px solid #2c3357; padding-top: 20px; }
 
+/* Tablas de mercado */
+.market-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0 24px;
+  background: var(--surface-2);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.market-table th, .market-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid #2c3357;
+}
+.market-table thead th {
+  background: rgba(124,108,255,0.15);
+  color: var(--accent-2);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.market-table td small { color: var(--muted); }
+.market-table input[type="number"],
+.market-table input[type="text"] {
+  max-width: 140px;
+}
+.competitors td { color: var(--muted); }
+.competitors td:first-child { color: var(--text); }
+
+/* Checklist legal */
+.checklist { list-style: none; padding: 0; }
+.checklist-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 12px 18px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.checklist-item label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+  flex: 1;
+  min-width: 240px;
+}
+.checklist-item input[type="checkbox"] {
+  width: 20px; height: 20px;
+  margin-top: 2px;
+  accent-color: var(--accent);
+}
+.checklist-item .check-name strong { display: block; }
+.checklist-item .check-name small { color: var(--muted); }
+.checklist-item.done .check-name strong {
+  text-decoration: line-through;
+  color: var(--success);
+}
+.tag-manual {
+  font-style: normal;
+  font-size: 0.7rem;
+  background: rgba(77,208,225,0.18);
+  color: var(--accent-2);
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-left: 8px;
+}
+.check-cost { display: flex; align-items: center; gap: 8px; }
+.check-cost input[type="number"] { max-width: 120px; }
+.btn-icon {
+  background: transparent;
+  border: none;
+  color: var(--danger);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+.manual-add-box {
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin: 20px 0;
+}
+.manual-add-box h4 { margin: 0 0 12px; }
+.manual-add-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.manual-add-row input[type="text"] { flex: 2; min-width: 180px; }
+.manual-add-row input[type="number"] { flex: 1; min-width: 100px; }
+
+/* Totales */
+.total-box {
+  background: rgba(77,208,225,0.10);
+  border: 1px solid var(--accent-2);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 14px 20px;
+  font-size: 1.05rem;
+  margin: 16px 0;
+}
+.total-box strong { color: var(--accent-2); }
+
+/* Tarjetas de costes */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  margin: 16px 0;
+}
+.cost-card {
+  background: var(--surface-2);
+  border: 1px solid #343d6b;
+  border-radius: 10px;
+  padding: 16px;
+}
+.cost-card label {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+.cost-card small { color: var(--muted); opacity: 0.8; }
+.cost-input-row { display: flex; align-items: center; gap: 8px; }
+.cost-input-row input { max-width: 130px; }
+.cost-input-row span { color: var(--accent-2); font-weight: 600; }
+
+h3 small { color: var(--muted); font-weight: 400; }
+
 @media (max-width: 640px) {
   .form-row { grid-template-columns: 1fr; }
   .card, .welcome-card { padding: 20px; }
